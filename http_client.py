@@ -1,5 +1,14 @@
 import requests
 
+class InvalidSLTokenException(Exception):
+    def __init__(self, message, errors):
+
+        # Call the base class constructor with the parameters it needs
+        super().__init__(message)
+
+        # Now for your custom code...
+        self.errors = errors
+
 class Http_client:
 
     token_registration_url = "https://api.supermetrics.com/assignment/register"
@@ -43,7 +52,11 @@ class Http_client:
         if posts_response.status_code == 200:
             return Http_client.extract_data(posts_response, 'posts')
         else: # we dont retry to get token due to single responsibility principle, hence raise error
-            raise Exception(f"Failed with Error Code::{posts_response.status_code}" \
+            reason = posts_response.json()['error']['message']
+            if reason == "Invalid SL Token":
+                raise InvalidSLTokenException("SL Token is Invalid. Please use latest token", '')
+            else:
+                raise Exception(f"Failed with Error Code::{posts_response.status_code}" \
                             f" & Reason is ::{posts_response.json()['error']['message']}")
 
     @staticmethod

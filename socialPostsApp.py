@@ -1,4 +1,4 @@
-from http_client import Http_client
+from http_client import Http_client, InvalidSLTokenException
 from config import Config
 from data_miner import Data_miner
 import json
@@ -24,14 +24,27 @@ class SocialPostsApp:
     @staticmethod
     def fetch_all_posts():
         posts = []
-        for page_no in range(1,11):
-            fetch_posts_data = {"sl_token":sl_token, "page":page_no}
-            posts_per_page = Http_client.get_posts(fetch_posts_data)
-            posts.extend(posts_per_page)
+        retry = 0
+        while True: # Infinite loop to give retries a chance.
+            try:
+                sl_token = SocialPostsApp.get_app_token()
+                for page_no in range(1,11):
+                    # sl_token = 'smslt_48cbb38db38_64785040a5623b'
+                    fetch_posts_data = {"sl_token":sl_token, "page":page_no}
+                    posts_per_page = Http_client.get_posts(fetch_posts_data)
+
+                    posts.extend(posts_per_page)
+                break
+            except InvalidSLTokenException as e:
+                # Try to get latest token 3 times else we raise & terminate
+                if retry < 3:
+                    retry = retry + 1
+                else:
+                    raise Exception("Critical error:: Unable to fetch posts -- (Possible reasons -- sltoken invalid & invalid url)")
         return posts
 
     @staticmethod
-    def initialise_data_miner(data):
+    def load_data_miner(data):
         SocialPostsApp._data_miner.load_data(data)
 
     @staticmethod
@@ -70,9 +83,8 @@ class SocialPostsApp:
 if __name__ == "__main__":
 
     SocialPostsApp.initialise_app_config("m@m.m","MP")
-    sl_token = SocialPostsApp.get_app_token()
     all_posts = SocialPostsApp.fetch_all_posts()
-    SocialPostsApp.initialise_data_miner(all_posts)
+    SocialPostsApp.load_data_miner(all_posts)
 
     results = SocialPostsApp.mine_data()
 
